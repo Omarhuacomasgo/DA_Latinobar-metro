@@ -43,7 +43,7 @@ pacman::p_load(tidyverse, readxl, janitor, lubridate, scales, ggplot2, gganimate
 
 ```{r}
 
-lb24_nm <- read_xlsx("C:\\Users\\omarh\\OneDrive - Ridge point\\Rstudio projects\\DA_Latinobarómetro\\exports\\datasets\\lb2024_imputed.xlsx")
+lb24_nm <- read_xlsx("C:\\Users\\HP\\OneDrive - Ridge point\\Rstudio projects\\DA_Latinobarómetro\\exports\\datasets\\lb2024_imputed.xlsx")
 ```
 
 ```{r}
