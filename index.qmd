@@ -335,7 +335,7 @@ for (indicador_actual in indicadores) {
   output_filename <- file.path(output_dir, paste0("pastel_", indicador_actual, ".xlsx"))
   
   # Guardar el archivo CSV
-  writexl:: write_xlsx(data_to_export, output_filename)
+  writexl:: write_xlsx(data_to_export, output_filename)}
   
 ```
 
