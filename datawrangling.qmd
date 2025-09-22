@@ -1,0 +1,355 @@
+---
+title: "Análisis del Latinobarómetro 2024"
+author: "Omar Enrique Arturo Huaco Masgo"
+date: "today"
+lang: es
+execute:
+  warning: false        # suprime advertencias
+  message: false        # suprime mensajes
+  echo: false           # (opcional) muestra el código
+format:
+  html:
+    theme: lumen
+    toc: true
+    toc_float: true
+    number-sections: true
+    code-fold: true
+    code-tools: true
+    self-contained: true
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+knitr::opts_knit$set(
+  echo    = TRUE,        # muestra el código
+  warning = FALSE,       # no muestra advertencias
+  message = FALSE,       # no muestra mensajes
+  fig.width  = 8,        # ancho de las figuras
+  fig.height = 5,        # alto de las figuras
+  fig.align  = "center", # alinea las figuras al centro
+  dpi        = 600)      # resolución de las figuras
+  
+```
+
+```{r, message = FALSE, results = 'hide'}
+
+# Paquetes
+lapply(c("tidyverse", "readxl", "writexl", "modelsummary", "haven", "janitor", "labelled", "forcats", "mice"),
+       library,  character.only = TRUE)
+
+```
+
+# Resumen del documento
+
+Este script expone la ruta seguida para el procesamiento de datos del Latinobarómetro 2025
+
+# Data wrangling
+
+## Importación de bases de datos
+
+```{r}
+
+lb2024 <- haven :: read_sav("C:\\Users\\HP\\OneDrive - Ridge point\\Bases de datos\\survey_data\\latinobarometro_datasets\\lb2024.sav")
+
+lb2024 <- lb2024 %>%  mutate(across(where(is.character), trimws)) %>% 
+  rename_with(~ gsub("[._[:space:]]+", "", tolower(.x)))
+
+unknown_cat   <- c("No sabe", "No contesta", "No aplicable", "No preguntada", 
+                   "No sabe / No contesta", 
+                   "No menciona partido (Vota nulo/blanco, no vota, ninguno)", "No menciona partido")
+```
+
+## Extracción de metadatos
+
+```{r}
+
+lb2024_metadata <- look_for(lb2024) %>% as_tibble()
+writexl::write_xlsx(x = lb2024_metadata, path = file.path("exports", "tables", "lb2024_metadata.xlsx"))
+
+```
+ 
+
+## Selección de variables relevantes
+
+```{r}
+
+lb24_nm <- lb2024 %>% dplyr:: select(
+  # Apoyo a las instituciones electorales
+  p22n, # Criticar al gobierno- apo.libertad expresión
+  p20st, # partidos políticos - apo.libertad de asoc
+  p18std, # gob. tecnocrático - apo.elección de tomadores de decisi.
+  
+  # Apoyo a las instituciones liberales
+  p18stc, # aplicacion de la ley - apo.igualdad ante la ley
+  
+  # Apoyo difuso
+  p18sta, # Churchill
+  p18stb, # No me importaría que un gobienro no democrático
+  
+  # Apoyo específico 
+  
+  p12stgbsa, # Satisfacción democrática
+  
+  # Sociodem
+  numinves, idenpa, reg, ciudad, tamciud, edad, sexo, wt,
+  s2, s11, s15a, s18a,s24, reedad, 
+  
+  # Controles
+  p17st, # Percepción de distribución del ingreso  
+  p36stgbs # Interés en la política
+  ) %>%
+  mutate(edad = as.numeric(edad)) %>% mutate(
+    across(.cols = where(haven::is.labelled),.fns  = ~ haven::as_factor(.x, levels = "labels"))
+  ) %>% filter (idenpa == " Peru")
+```
+
+## Procesamiento de variables categóricas 
+
+```{r}
+# Definición de funciones auxiliares, escalas y categorías desconocidas
+normaliza   <- function(x) {
+  x %>%
+    stringr::str_trim() %>% stringr::str_squish() %>%
+    stringi::stri_trans_general("Latin-ASCII") %>% stringr::str_to_lower()
+}
+niveles_ok  <- function(v, ref) all(stats::na.omit(v) %in% ref)
+
+unknown_cat <- c("^no sabe", "^no contesta", "^no aplicable", "^no preguntada", "^sin dato",
+                 "no menciona", "vota nulo", "ningun partido")
+
+ord_foursteps     <- c("ninguna", "poca", "algo", "mucha")
+cs_subjective_ord <- c("baja", "media baja", "media", "media alta", "alta")
+justice_ord       <- c("muy injusta", "injusta", "justa", "muy justa")
+ord_satis         <- c("nada satisfecho", "no muy satisfecho", "mas bien satisfecho", "muy satisfecho")
+ord_agree         <- c("muy en desacuerdo", "en desacuerdo", "de acuerdo", "muy de acuerdo")
+ord_interes       <- c("nada interesado", "poco interesado", "algo interesado", "muy interesado")
+educ_ord          <- c("analfabeto", "basica incompleta", "basica completa", "secundaria, media, tecnica incompleta",
+                     "secundaria, media, tecnica completa",  "superior incompleta",  "superior completa")
+
+
+# Aplicación de la recodificación sobre el objeto lb24_nm
+lb24_nm <- lb24_nm %>%
+  mutate(
+    across(
+      .cols = where(is.factor),
+      .fns  = ~ {
+        x_chr_norm <- .x %>% as.character() %>% normaliza()
+        
+        x_chr_norm[stringr::str_detect(x_chr_norm, stringr::str_c(unknown_cat, collapse = "|"))] <- NA_character_
+        
+        if (niveles_ok(x_chr_norm, ord_foursteps)) {
+          factor(x_chr_norm, levels = ord_foursteps, labels = str_to_sentence(ord_foursteps), ordered = TRUE)
+        } else if (niveles_ok(x_chr_norm, cs_subjective_ord)) {
+          factor(x_chr_norm, levels = cs_subjective_ord, labels = str_to_sentence(cs_subjective_ord), ordered = TRUE)
+        } else if (niveles_ok(x_chr_norm, justice_ord)) {
+          factor(x_chr_norm, levels = justice_ord, labels = str_to_sentence(justice_ord), ordered = TRUE)
+        } else if (niveles_ok(x_chr_norm, ord_satis)) {
+          factor(x_chr_norm, levels = ord_satis, labels = str_to_sentence(ord_satis), ordered = TRUE)
+        } else if (niveles_ok(x_chr_norm, ord_agree)) {
+          factor(x_chr_norm, levels = ord_agree, labels = str_to_sentence(ord_agree), ordered = TRUE)
+        } else if (niveles_ok(x_chr_norm, educ_ord)) {
+          factor(x_chr_norm, levels = educ_ord, labels = str_to_sentence(educ_ord), ordered = TRUE)
+        } else if (niveles_ok(x_chr_norm, ord_interes)) {
+          factor(x_chr_norm, levels = ord_interes, labels = str_to_sentence(ord_interes), ordered = TRUE)
+        } else {
+          factor(str_to_sentence(x_chr_norm))
+        }
+      }
+    )
+  ) %>%
+  # Limpieza final de niveles no utilizados
+  mutate(across(where(is.factor), forcats::fct_drop))
+```
+
+
+
+```{r}
+skimr::skim(lb24_nm)
+```
+
+
+# Configuración de la Imputación
+
+En este paso, definimos explícitamente qué variables deseamos imputar. Esto nos da un control preciso sobre el proceso, en lugar de imputar automáticamente todas las columnas con valores `NA`.
+
+```{r}
+
+#| label: imputation-setup
+# Vector para personalizar las variables a imputar.
+# El usuario debe listar aquí las columnas que quiere rellenar.
+vars_to_impute <- c("p22n", "p20st", "p18std", "p18stc", "p17st", "p18sta", "p18stb" , "p12stgbsa", "s2", "s11", "s15a", "s18a", "p36stgbs")
+
+# Filtrar el dataset para trabajar solo con las variables relevantes + identificadores
+data_for_imputation <- lb24_nm %>%  dplyr::select(
+    numinves, # Se mantiene como identificador, pero no se usará como predictor
+    all_of(vars_to_impute)
+  )
+```
+
+```{r}
+# Clasificar las variables a imputar según su tipo
+numeric_vars     <- names(which(sapply(data_for_imputation[vars_to_impute], is.numeric)))
+ordinal_vars     <- names(which(sapply(data_for_imputation[vars_to_impute], is.ordered)))
+categorical_vars <- names(which(sapply(data_for_imputation[vars_to_impute], function(x) is.factor(x) && !is.ordered(x))))
+```
+
+## Ejecución de la Imputación Multivariada
+
+Aquí configuramos y ejecutamos `mice`. Aumentamos el número de iteraciones (`maxit`) para asegurar que el algoritmo converja adecuadamente y ajustamos la matriz de predictores para excluir variables de identificación.
+
+```{r}
+#| label: imputation-run
+
+# --- Definir métodos de imputación ---
+# Se crea un vector de métodos solo para las variables que vamos a imputar.
+meth_vec <- character(ncol(data_for_imputation))
+names(meth_vec) <- colnames(data_for_imputation)
+
+meth_vec[numeric_vars]     <- "pmm"
+meth_vec[ordinal_vars]     <- "polr"
+meth_vec[categorical_vars] <- "polyreg"
+
+# --- Configurar la matriz de predictores. Empezamos con la matriz por defecto
+pred_matrix <- make.predictorMatrix(data_for_imputation)
+
+# Excluimos variables que no deben ser predictoras (ej. IDs)
+pred_matrix[, "numinves"] <- 0
+
+# --- Ejecutar la imputación. Aumentamos maxit para una mejor convergencia
+imputed_data_mice <- mice(
+  data_for_imputation,
+  method = meth_vec,
+  predictorMatrix = pred_matrix,
+  m = 10,         # Número de imputaciones
+  maxit = 20,       # Aumentado de 5 a 20 iteraciones
+  seed = 123,
+  printFlag = FALSE
+)
+
+cat("Imputación completada.\n")
+```
+## Diagnóstico de la calidad de imputación
+
+Este es un paso **crítico**. Antes de usar los datos, debemos verificar si el proceso de imputación fue exitoso. Los gráficos de convergencia y densidad nos ayudan a evaluar la calidad.
+
+```{r}
+
+#| label: imputation-diagnostics
+#| fig-cap: "Gráficos de diagnóstico del proceso de imputación."
+#| layout-ncol: 2
+
+# 1. Gráfico de Convergencia. Las líneas de diferentes colores (cada una es una imputación) deben mezclarse, bien, sin mostrar tendencias claras. Esto indica que el algoritmo convergió.
+
+plot(imputed_data_mice, main = "Convergencia de las Cadenas de Imputación")
+
+```
+
+# Diagnóstico del dataset final
+
+Una vez validada la imputación, creamos un único dataset completo para fines de reporte o visualización. Para análisis estadístico formal, se recomienda usar el objeto `imputed_data_mice` completo y la función `pool()` para combinar resultados.
+
+```{r, fig.width=10, fig.height=10}
+
+#| label: final-dataset
+# --- Creación de un único dataset completo ---
+# Se recomienda para visualización o reportes descriptivos.
+# Para análisis inferencial, usar el objeto 'imputed_data_mice' con pool().
+lb24_nm_imputed <- complete(imputed_data_mice, 1) # Usamos la primera imputación
+
+# Unimos las variables imputadas con las que no necesitaron imputación del dataset original
+final_df <- lb24_nm %>%
+  dplyr::select(-all_of(vars_to_impute)) %>%
+  dplyr::bind_cols(lb24_nm_imputed %>% select(all_of(vars_to_impute)))
+
+cat("Dimensiones del dataset original:", dim(lb24_nm), "\n")
+cat("Dimensiones del dataset final imputado:", dim(final_df), "\n")
+cat("Valores perdidos restantes en el dataset final:", sum(is.na(final_df)), "\n")
+```
+
+```{r}
+skimr::skim(final_df)
+```
+
+
+
+## Comparación Visual: Antes y Después
+
+Reutilizamos tu excelente código de visualización para comparar las distribuciones de las variables categóricas, pero ahora generando un gráfico para cada variable.
+
+```{r}
+## Comparación Visual: Antes y Después
+
+
+#| label: visualization-comparison-individual
+#| fig-cap: "Comparación de distribuciones para cada variable categórica (Original vs. Imputado)."
+#| fig-height: 6
+#| fig-width: 10
+
+# --- Preparar datos para el gráfico ---
+original_long <- lb24_nm %>%
+  select(any_of(c(categorical_vars, ordinal_vars))) %>%
+  mutate(across(everything(), as.character)) %>%
+  pivot_longer(everything(), names_to = "variable", values_to = "categoria") %>%
+  filter(!is.na(categoria)) %>%
+  mutate(Fuente = "Original")
+
+imputed_long <- final_df %>%
+  select(any_of(c(categorical_vars, ordinal_vars))) %>%
+  mutate(across(everything(), as.character)) %>%
+  pivot_longer(everything(), names_to = "variable", values_to = "categoria") %>%
+  mutate(Fuente = "Imputada")
+
+# Combinar ambos datasets
+comparison_df <- bind_rows(original_long, imputed_long) %>%
+  count(variable, categoria, Fuente) %>%
+  group_by(variable, Fuente) %>%
+  mutate(proporcion = n / sum(n)) %>%
+  ungroup()
+
+# --- Graficar un gráfico por cada variable ---
+# Obtenemos la lista única de variables a graficar
+vars_to_plot <- unique(comparison_df$variable)
+
+# Iteramos sobre cada variable y creamos un gráfico
+for (var in vars_to_plot) {
+  
+  # Filtramos los datos para la variable actual
+  plot_data <- comparison_df %>%
+    filter(variable == var)
+  
+  # Creamos el gráfico
+  p <- ggplot(plot_data, aes(x = fct_reorder(categoria, proporcion), y = proporcion, fill = Fuente)) +
+    geom_col(position = "dodge") +
+    scale_y_continuous(labels = scales::percent_format()) +
+    coord_flip() +
+    labs(
+      title = paste("Distribución de Proporciones para la Variable:", var),
+      subtitle = "La distribución de los datos imputados debería ser similar a la original.",
+      x = "Categoría",
+      y = "Proporción",
+      fill = "Fuente de Datos"
+    ) +
+    theme_minimal(base_size = 12) +
+    theme(
+      legend.position = "top",
+      plot.title = element_text(face = "bold")
+    )
+  
+  # Imprimimos el gráfico
+  print(p)
+}
+
+```
+
+```{r}
+# Cargar la librería necesaria (si no está cargada)
+library(haven)
+```
+
+```{r}
+writexl::write_xlsx(x = final_df, path = file.path("exports", "datasets", "lb2024_imputed.xlsx"))
+```
+
+

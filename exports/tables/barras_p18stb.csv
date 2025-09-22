@@ -1,0 +1,25 @@
+grupo_etario,sexo,respuesta,n,proporcion
+18-29 años,Hombre,Muy en desacuerdo,12,0.056074766355140186
+18-29 años,Hombre,En desacuerdo,66,0.308411214953271
+18-29 años,Hombre,De acuerdo,114,0.5327102803738317
+18-29 años,Hombre,Muy de acuerdo,22,0.102803738317757
+18-29 años,Mujer,Muy en desacuerdo,13,0.07027027027027027
+18-29 años,Mujer,En desacuerdo,82,0.44324324324324327
+18-29 años,Mujer,De acuerdo,81,0.43783783783783786
+18-29 años,Mujer,Muy de acuerdo,9,0.04864864864864865
+30-45 años,Hombre,Muy en desacuerdo,16,0.08333333333333333
+30-45 años,Hombre,En desacuerdo,60,0.3125
+30-45 años,Hombre,De acuerdo,96,0.5
+30-45 años,Hombre,Muy de acuerdo,20,0.10416666666666667
+30-45 años,Mujer,Muy en desacuerdo,18,0.08411214953271028
+30-45 años,Mujer,En desacuerdo,97,0.4532710280373832
+30-45 años,Mujer,De acuerdo,85,0.397196261682243
+30-45 años,Mujer,Muy de acuerdo,14,0.06542056074766354
+46-60 años,Hombre,Muy en desacuerdo,9,0.08035714285714286
+46-60 años,Hombre,En desacuerdo,40,0.35714285714285715
+46-60 años,Hombre,De acuerdo,48,0.42857142857142855
+46-60 años,Hombre,Muy de acuerdo,15,0.13392857142857142
+46-60 años,Mujer,Muy en desacuerdo,7,0.0546875
+46-60 años,Mujer,En desacuerdo,54,0.421875
+46-60 años,Mujer,De acuerdo,57,0.4453125
+46-60 años,Mujer,Muy de acuerdo,10,0.078125
