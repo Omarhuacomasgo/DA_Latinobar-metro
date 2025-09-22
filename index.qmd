@@ -1,0 +1,341 @@
+---
+title: "Análisis del Latinobarómetro 2024"
+author: "Omar Enrique Arturo Huaco Masgo"
+date: "today"
+lang: es
+execute:
+  warning: false        # suprime advertencias
+  message: false        # suprime mensajes
+  echo: false           # (opcional) muestra el código
+format:
+  html:
+    theme: lumen
+    toc: true
+    toc_float: true
+    number-sections: true
+    code-fold: true
+    code-tools: false
+    self-contained: true
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+knitr::opts_knit$set(
+  echo    = TRUE,        # muestra el código
+  warning = FALSE,       # no muestra advertencias
+  message = FALSE,       # no muestra mensajes
+  fig.width  = 8,        # ancho de las figuras
+  fig.height = 5,        # alto de las figuras
+  fig.align  = "center", # alinea las figuras al centro
+  dpi        = 600)      # resolución de las figuras
+  
+```
+
+```{r, message = FALSE, results = 'hide'}
+
+# Paquetes
+library(pacman)
+pacman::p_load(tidyverse, readxl, janitor, lubridate, scales, ggplot2, gganimate, gifski, transformr)
+
+```
+
+```{r}
+
+lb24_nm <- read_xlsx("C:\\Users\\omarh\\OneDrive - Ridge point\\Rstudio projects\\DA_Latinobarómetro\\exports\\datasets\\lb2024_imputed.xlsx")
+```
+
+```{r}
+# Definición de funciones y escalas (estas no cambian)
+normaliza   <- function(x) {
+  x %>%
+    stringr::str_trim() %>% stringr::str_squish() %>%
+    stringi::stri_trans_general("Latin-ASCII") %>% stringr::str_to_lower()
+}
+niveles_ok  <- function(v, ref) all(stats::na.omit(v) %in% ref)
+
+unknown_cat <- c("^no sabe", "^no contesta", "^no aplicable", "^no preguntada", "^sin dato",
+                 "no menciona", "vota nulo", "ningun partido")
+
+ord_foursteps     <- c("ninguna", "poca", "algo", "mucha")
+cs_subjective_ord <- c("baja", "media baja", "media", "media alta", "alta")
+justice_ord       <- c("muy injusta", "injusta", "justa", "muy justa")
+ord_satis         <- c("nada satisfecho", "no muy satisfecho", "mas bien satisfecho", "muy satisfecho")
+ord_agree         <- c("muy en desacuerdo", "en desacuerdo", "de acuerdo", "muy de acuerdo")
+ord_interes       <- c("nada interesado", "poco interesado", "algo interesado", "muy interesado")
+educ_ord          <- c("analfabeto", "basica incompleta", "basica completa", "secundaria, media, tecnica incompleta",
+                     "secundaria, media, tecnica completa",  "superior incompleta",  "superior completa")
+```
+
+
+```{r}
+# 2. Aplicación de la Recodificación (Código Adaptado)
+
+lb24_nm_recoded <- lb24_nm %>%
+  mutate(
+    # El cambio clave: iteramos sobre cada columna que sea de texto (character).
+    across(
+      .cols = where(is.character), # <-- CAMBIO 1: Operamos sobre texto, no factores.
+      .fns  = ~ {
+        # Normalizamos el texto. Ya no es necesario as.character(), porque .x ya lo es.
+        x_chr_norm <- .x %>% normaliza() # <-- CAMBIO 2: Simplificado.
+        
+        # El resto de tu lógica para convertir a NA y verificar las escalas es perfecta y no necesita cambios.
+        x_chr_norm[stringr::str_detect(x_chr_norm, stringr::str_c(unknown_cat, collapse = "|"))] <- NA_character_
+        
+        if (niveles_ok(x_chr_norm, ord_foursteps)) {
+          factor(x_chr_norm, levels = ord_foursteps, labels = str_to_sentence(ord_foursteps), ordered = TRUE)
+        } else if (niveles_ok(x_chr_norm, cs_subjective_ord)) {
+          factor(x_chr_norm, levels = cs_subjective_ord, labels = str_to_sentence(cs_subjective_ord), ordered = TRUE)
+        } else if (niveles_ok(x_chr_norm, justice_ord)) {
+          factor(x_chr_norm, levels = justice_ord, labels = str_to_sentence(justice_ord), ordered = TRUE)
+        } else if (niveles_ok(x_chr_norm, ord_satis)) {
+          factor(x_chr_norm, levels = ord_satis, labels = str_to_sentence(ord_satis), ordered = TRUE)
+        } else if (niveles_ok(x_chr_norm, ord_agree)) {
+          factor(x_chr_norm, levels = ord_agree, labels = str_to_sentence(ord_agree), ordered = TRUE)
+        } else if (niveles_ok(x_chr_norm, educ_ord)) {
+          factor(x_chr_norm, levels = educ_ord, labels = str_to_sentence(educ_ord), ordered = TRUE)
+        } else if (niveles_ok(x_chr_norm, ord_interes)) {
+          factor(x_chr_norm, levels = ord_interes, labels = str_to_sentence(ord_interes), ordered = TRUE)
+        } else {
+          # Si no es una escala ordinal, la convierte a factor simple
+          factor(str_to_sentence(x_chr_norm))
+        }
+      }
+    )
+  ) %>%
+  # Limpieza final de niveles no utilizados
+  mutate(across(where(is.factor), forcats::fct_drop))
+
+
+```
+
+# El Estado de la democracia en el Perú (2024)
+
+Medir el "apoyo a la democracia" es un desafío, pues su significado es abstracto y puede variar entre personas. Por esta razón, este análisis adopta un enfoque más preciso que, en lugar de preguntar por la "democracia" en general, mide el respaldo ciudadano a sus componentes más concretos: los derechos e instituciones que la hacen funcionar. 
+
+
+Para ello, y con base en los datos del Latinobarómetro 2024, evaluamos el apoyo a dos dimensiones clave: 
+
+1. La primera dimensión se centra en las instituciones electorales, analizamos el respaldo a principios esenciales como la libertad de expresión y de asociación, así como la elección popular de los gobernantes. 
+
+2. La segunda aborda las instituciones liberales, donde examinamos el apoyo a la igualdad de todos ante la ley.
+
+
+### Primera forma: Apoyo Institucional
+
+Esta tabla clasifica las variables según el tipo de institución democrática que evalúan.
+
+| Tipo de Apoyo | Variable | Descripción | Pregunta |
+| :--- | :--- | :--- |
+| A las instituciones electorales | `p22n` | Apoyo a la libertad de expresión |
+| A las instituciones electorales | `p20st` | Apoyo a la libertad de asociación (partidos) |
+| A las instituciones electorales | `p18std` | Apoyo a la elección popular de gobernantes |
+| A las instituciones liberales    | `p18stc` | Apoyo a la igualdad ante la ley |
+
+### Segunda forma: Apoyo Específico y Difuso
+
+Esta tabla clasifica las variables según si miden el apoyo a los resultados del régimen (específico) o a sus principios (difuso).
+
+| Tipo de Apoyo | Variable | Descripción |Pregunta
+| :--- | :--- | :--- |
+| Apoyo Específico | `p12stgbsa` | Satisfacción con el funcionamiento de la democracia |
+| Apoyo Difuso | `p18sta` | Preferencia por la democracia como sistema (Churchill) |
+| Apoyo Difuso | `p18stb` | Rechazo a un gobierno no democrático |
+
+
+
+```{r}
+#| label: data-prep-viz
+
+# Crear la variable 'grupo_etario' a partir de 'edad'
+lb24_nm_recoded <- lb24_nm_recoded %>%
+  mutate(
+    grupo_etario = case_when(
+      edad >= 18 & edad <= 29 ~ "18-29 años",
+      edad >= 30 & edad <= 45 ~ "30-45 años",
+      edad >= 46 & edad <= 60 ~ "46-60 años",
+      edad > 60               ~ "Más de 60 años ",
+      TRUE                    ~ NA_character_
+    )
+  ) %>%  # Convertir la nueva variable a factor para ordenar los gráficos
+  mutate(grupo_etario = factor(grupo_etario, levels = c(
+    "18-29 años",
+    "30-45 años",
+    "46-60 años",
+    "Más de 60 años")))
+
+# Definir el vector con los nombres de las variables a graficar
+indicadores <- c("p22n", "p20st", "p18std", "p18stc", # Institucionales
+  "p12stgbsa", "p18sta", "p18stb" )     # Específico/Difuso)
+```
+
+
+```{r}
+#| label: generate-plots
+#| fig-cap: "Distribución de respuestas para los indicadores de apoyo a la democracia."
+
+for (indicador_actual in indicadores) {
+  
+  # Preparar los datos: calcular proporciones para el indicador actual
+  plot_data <- lb24_nm_recoded %>%
+    # Eliminar filas donde el indicador o los grupos tengan NA
+    filter(!is.na(.data[[indicador_actual]]) & !is.na(grupo_etario) & !is.na(sexo)) %>%
+    # Agrupar y contar
+    count(grupo_etario, sexo, .data[[indicador_actual]]) %>%
+    # Calcular la proporción dentro de cada grupo 'sexo' y 'grupo_etario'
+    group_by(grupo_etario, sexo) %>%
+    mutate(proporcion = n / sum(n)) %>%
+    ungroup()
+
+  # Crear el gráfico
+  p <- ggplot(plot_data, aes(
+      x = .data[[indicador_actual]], 
+      y = proporcion, 
+      fill = sexo
+    )) +
+    geom_col(position = "dodge") +
+    # Usar facetas para separar los gráficos por grupo etario
+    facet_wrap(~ grupo_etario, nrow = 1) + 
+    # Formatear el eje Y como porcentaje
+    scale_y_continuous(labels = scales::percent_format()) +
+    # Voltear coordenadas para mejor legibilidad de las etiquetas
+    coord_flip() +
+    labs(
+      title = paste("Apoyo según la variable:", indicador_actual),
+      subtitle = "Distribución de respuestas por sexo y grupo etario",
+      x = "Respuesta",
+      y = "Proporción",
+      fill = "Sexo"
+    ) +
+    theme_gray(base_size = 12) +
+    theme(
+      legend.position = "top",
+      axis.text.x = element_text(angle = 0, hjust = 1) # Mejorar la legibilidad
+    )
+  
+  # Imprimir el gráfico en el documento
+  print(p)
+}
+```
+
+```{r, dpi=600, fig.width=10, fig.height=6}
+#| label: generate-pie-charts
+#| fig-cap: "Distribución de respuestas en gráficos de pastel por grupo etario."
+
+for (indicador_actual in indicadores) {
+  
+  # 1. PREPARAR DATOS (sin la variable 'sexo')
+  # --------------------------------------------------------------------
+  plot_data <- lb24_nm_recoded %>%
+    # Filtramos NAs del indicador y del grupo etario
+    filter(!is.na(.data[[indicador_actual]]) & !is.na(grupo_etario)) %>%
+    # Contamos las respuestas por cada grupo etario
+    count(grupo_etario, .data[[indicador_actual]]) %>%
+    # Calculamos la proporción DENTRO de cada grupo etario
+    group_by(grupo_etario) %>%
+    mutate(
+      proporcion = n / sum(n),
+      # Calculamos la posición para las etiquetas de porcentaje
+      posicion_etiqueta = cumsum(proporcion) - 0.5 * proporcion
+    ) %>%
+    ungroup()
+
+  # 2. CREAR GRÁFICO DE PASTEL
+  # --------------------------------------------------------------------
+  p <- ggplot(plot_data, aes(
+      x = "", # Usamos x = "" para crear la base del pastel
+      y = proporcion, 
+      fill = .data[[indicador_actual]] # El relleno ahora es la respuesta
+    )) +
+    # Barra apilada que se convertirá en el pastel
+    geom_col(width = 1) +
+    # La función clave para convertir la barra en un círculo
+    coord_polar(theta = "y") +
+    # Separar los gráficos por cada grupo etario
+    facet_wrap(~ grupo_etario, nrow = 1) +
+    # Añadir etiquetas de porcentaje en cada porción
+    geom_text(aes(y = posicion_etiqueta, label = scales::percent(proporcion, accuracy = 1)),
+              color = "white", size = 3.5) +
+    # Actualizar títulos y leyendas
+    labs(
+      title = paste("Distribución para la variable:", indicador_actual),
+      subtitle = "Respuestas por grupo etario",
+      fill = "Respuesta" # La leyenda del relleno ahora es la respuesta
+    ) +
+    # Usar un tema limpio, ideal para gráficos de pastel
+    theme_void() +
+    theme(
+      legend.position = "top",
+      strip.text = element_text(face = "bold", size = 12), # Estilo para el título de faceta
+      plot.title = element_text(face = "bold", hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5)
+    )
+  
+  # Imprimir el gráfico
+  print(p)
+}
+```
+
+```{r}
+#| label: export-bar-chart-data
+
+# Asegurarse de que el directorio de salida exista
+output_dir <- file.path("exports", "tables")
+dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+
+# Bucle para procesar y guardar los datos de cada indicador
+for (indicador_actual in indicadores) {
+  
+  # Preparar los datos (misma lógica que usaste para los gráficos)
+  data_to_export <- lb24_nm_recoded %>%
+    filter(!is.na(.data[[indicador_actual]]) & !is.na(grupo_etario) & !is.na(sexo)) %>%
+    count(grupo_etario, sexo, .data[[indicador_actual]]) %>%
+    group_by(grupo_etario, sexo) %>%
+    mutate(proporcion = n / sum(n)) %>%
+    ungroup() %>%
+    # Renombrar la columna del indicador a un nombre genérico ("respuesta")
+    rename(respuesta = !!indicador_actual) %>%
+    # Ordenar para mayor claridad en el archivo
+    arrange(grupo_etario, sexo, respuesta)
+  
+  # Definir el nombre del archivo de salida
+  output_filename <- file.path(output_dir, paste0("barras_", indicador_actual, ".xlsx"))
+  
+  # Guardar el archivo CSV
+  writexl:: write_xlsx(data_to_export, output_filename)
+  
+  cat("Archivo guardado:", output_filename, "\n")
+}
+```
+
+```{r}
+#| label: export-pie-chart-data
+
+# El directorio ya fue creado en el paso anterior
+
+# Bucle para procesar y guardar los datos de cada indicador
+for (indicador_actual in indicadores) {
+  
+  # Preparar los datos (lógica del gráfico de pastel)
+  data_to_export <- lb24_nm_recoded %>%
+    filter(!is.na(.data[[indicador_actual]]) & !is.na(grupo_etario)) %>%
+    count(grupo_etario, .data[[indicador_actual]]) %>%
+    group_by(grupo_etario) %>%
+    mutate(proporcion = n / sum(n)) %>%
+    ungroup() %>%
+    # Renombrar la columna del indicador
+    rename(respuesta = !!indicador_actual) %>%
+    # Seleccionar solo las columnas necesarias para Flourish
+    select(grupo_etario, respuesta, n, proporcion) %>%
+    arrange(grupo_etario, respuesta)
+    
+  # Definir el nombre del archivo de salida
+  output_filename <- file.path(output_dir, paste0("pastel_", indicador_actual, ".xlsx"))
+  
+  # Guardar el archivo CSV
+  writexl:: write_xlsx(data_to_export, output_filename)
+  
+```
+

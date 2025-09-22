@@ -1,0 +1,62 @@
+---
+title: "Procesamiento_datasets_latinobarometro"
+author: "Omar Huaco"
+date: "2025-09-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_knit$set(
+  echo = TRUE,               # muestra el código
+  warning = FALSE,           # no muestra advertencias
+  message = FALSE,           # no muestra mensajes
+  fig.width = 8,            # ancho de las figuras
+  fig.height = 5,           # alto de las figuras
+  fig.align = "center",    # alinea las figuras al centro
+  dpi = 600)           # resolución de las figuras
+  
+```
+
+
+```{r, message = FALSE, results= 'hide'}
+
+lapply(c("tidyverse", "readxl", "writexl", "modelsummary", "haven", "janitor", "labelled", "forcats"),
+       library,  character.only = TRUE)
+
+```
+
+
+
+# Importación de datos
+```{r}
+
+lb2024 <- haven :: read_sav("C:\\Users\\HP\\OneDrive - Ridge point\\Bases de datos\\survey_data\\latinobarometro_datasets\\lb2024.sav")
+
+lb2023 <- haven :: read_sav("C:\\Users\\HP\\OneDrive - Ridge point\\Bases de datos\\survey_data\\latinobarometro_datasets\\lb2023.sav")
+
+lb2020 <- haven :: read_sav("C:\\Users\\HP\\OneDrive - Ridge point\\Bases de datos\\survey_data\\latinobarometro_datasets\\lb2020.sav")
+
+lb2024 <- lb2024 %>%  mutate(across(where(is.character), trimws)) %>%  
+  rename_with(~ gsub("[._[:space:]]+", "",  tolower(.x)))
+lb2023 <- lb2023 %>%  mutate(across(where(is.character), trimws)) %>% 
+  rename_with(~ gsub("[._[:space:]]+", "",    tolower(.x)))
+lb2020 <- lb2020 %>%  mutate(across(where(is.character), trimws)) %>%  
+  rename_with(~ gsub("[._[:space:]]+", "", tolower(.x)))
+```
+
+# Extracción de metadatos
+
+```{r}
+lb2024_metadata <- look_for(lb2024) %>% as_tibble()
+lb2023_metadata <- look_for(lb2023) %>% as_tibble()
+lb2020_metadata <- look_for(lb2020) %>% as_tibble()
+```
+
+
+```{r}
+writexl::write_xlsx(x = lb2024_metadata, path = file.path("exports", "tables", "lb2024_metadata.xlsx"))
+writexl::write_xlsx(x = lb2023_metadata, path = file.path("exports", "tables", "lb2023_metadata.xlsx"))
+writexl::write_xlsx(x = lb2020_metadata, path = file.path("exports", "tables", "lb2020_metadata.xlsx"))
+```
+

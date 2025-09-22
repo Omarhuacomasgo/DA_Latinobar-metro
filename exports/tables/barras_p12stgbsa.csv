@@ -1,0 +1,25 @@
+grupo_etario,sexo,respuesta,n,proporcion
+18-29 años,Hombre,Nada satisfecho,51,0.2383177570093458
+18-29 años,Hombre,No muy satisfecho,131,0.6121495327102804
+18-29 años,Hombre,Mas bien satisfecho,22,0.102803738317757
+18-29 años,Hombre,Muy satisfecho,10,0.04672897196261682
+18-29 años,Mujer,Nada satisfecho,58,0.31351351351351353
+18-29 años,Mujer,No muy satisfecho,109,0.5891891891891892
+18-29 años,Mujer,Mas bien satisfecho,15,0.08108108108108109
+18-29 años,Mujer,Muy satisfecho,3,0.016216216216216217
+30-45 años,Hombre,Nada satisfecho,67,0.3489583333333333
+30-45 años,Hombre,No muy satisfecho,103,0.5364583333333334
+30-45 años,Hombre,Mas bien satisfecho,15,0.078125
+30-45 años,Hombre,Muy satisfecho,7,0.036458333333333336
+30-45 años,Mujer,Nada satisfecho,90,0.4205607476635514
+30-45 años,Mujer,No muy satisfecho,106,0.4953271028037383
+30-45 años,Mujer,Mas bien satisfecho,11,0.0514018691588785
+30-45 años,Mujer,Muy satisfecho,7,0.03271028037383177
+46-60 años,Hombre,Nada satisfecho,59,0.5267857142857143
+46-60 años,Hombre,No muy satisfecho,45,0.4017857142857143
+46-60 años,Hombre,Mas bien satisfecho,4,0.03571428571428571
+46-60 años,Hombre,Muy satisfecho,4,0.03571428571428571
+46-60 años,Mujer,Nada satisfecho,61,0.4765625
+46-60 años,Mujer,No muy satisfecho,56,0.4375
+46-60 años,Mujer,Mas bien satisfecho,6,0.046875
+46-60 años,Mujer,Muy satisfecho,5,0.0390625
